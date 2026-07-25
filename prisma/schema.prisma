@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  name          String
+  role          String   @default("anggota") // admin, bendahara, anggota
+  phone         String?
+  address       String?
+  gender        String?  // L, P
+  avatar        String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  member        Member?
+  incomes       Income[]
+  expenses      Expense[]
+  notifications Notification[]
+  payments      Payment[]
+  verifiedPayments Payment[] @relation("VerifiedPayments")
+}
+
+model Member {
+  id              String   @id @default(cuid())
+  memberNumber    String   @unique
+  name            String
+  email           String   @unique
+  phone           String?
+  address         String?
+  gender          String?  // L, P
+  position        String?  // jabatan
+  joinDate        DateTime @default(now())
+  status          String   @default("aktif") // aktif, nonaktif
+  avatar          String?
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  incomes         Income[]
+}
+
+model IncomeCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique // Iuran Bulanan, Donasi, Sponsor, Bantuan, Dana Kegiatan, Lainnya
+  description String?
+  incomes     Income[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ExpenseCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique // Konsumsi, Operasional, Kegiatan, Peralatan, Transportasi, Listrik, Internet, Lainnya
+  description String?
+  expenses    Expense[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Income {
+  id              String         @id @default(cuid())
+  transactionNumber String       @unique
+  date            DateTime
+  memberId        String?
+  member          Member?        @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  categoryId      String
+  category        IncomeCategory @relation(fields: [categoryId], references: [id])
+  amount          Float
+  description     String?
+  proofUrl        String?  // bukti pembayaran
+  createdBy       String
+  createdUser     User           @relation(fields: [createdBy], references: [id])
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model Expense {
+  id              String          @id @default(cuid())
+  transactionNumber String        @unique
+  date            DateTime
+  categoryId      String
+  category        ExpenseCategory @relation(fields: [categoryId], references: [id])
+  amount          Float
+  description     String?
+  recipient       String?   // penerima dana
+  proofUrl        String?   // bukti transaksi
+  createdBy       String
+  createdUser     User            @relation(fields: [createdBy], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("info") // info, success, warning, error
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EWallet {
+  id          String   @id @default(cuid())
+  type        String   // dana, ovo, gopay, shopeepay, qris, bank
+  name        String   // Display name: "DANA", "QRIS", etc.
+  number      String   // Phone number or account number
+  holderName  String   // Name of the account holder
+  qrUrl       String?  // QR code image URL for QRIS
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  payments    Payment[]
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  paymentNumber   String   @unique  // Unique payment reference
+  userId          String   // Member who makes the payment
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ewalletId       String   // Selected e-wallet
+  ewallet         EWallet  @relation(fields: [ewalletId], references: [id])
+  amount          Float
+  description     String?
+  status          String   @default("pending") // pending, verified, rejected
+  proofUrl        String?  // Payment proof screenshot
+  verifiedBy      String?  // Admin/bendahara who verified
+  verifiedAt      DateTime?
+  verifiedUser    User?    @relation(fields: [verifiedBy], references: [id], name: "VerifiedPayments")
+  incomeId        String?  // Linked income record after verification
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  title       String
+  category    String
+  description String   @db.Text
+  image       String
+  deployUrl   String?
+  tags        String
+  featured    Boolean  @default(false)
+  order       Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
